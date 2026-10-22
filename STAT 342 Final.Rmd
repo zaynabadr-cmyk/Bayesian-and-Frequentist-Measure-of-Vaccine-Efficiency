@@ -1,0 +1,249 @@
+---
+output: 
+  pdf_document:
+    latex_engine: xelatex
+urlcolor: blue
+header-includes:
+  - \usepackage{amsmath,amsfonts,amssymb}
+  - \usepackage{setspace} \doublespacing
+fontsize: 11pt
+---
+
+## Bayesian Inference
+
+In the Bayesian approach, the prior distribution is $T | \pi \sim Binom(n = 170, \pi)$.
+
+The parameter of interest is $\psi = \frac{1-2\pi}{1-\pi}$
+
+
+The initial step is to find $a$ and $b$. The vaccine only meets the FDA guidelines if the vaccine efficacy is 30%. Therefore, we can use the probability:
+
+$P(\psi \ge 0.3)$
+
+Substituting $\psi$ for $\frac{1-2\pi}{1-\pi}$
+
+$P(\psi \ge 0.3) = P(\frac{1-2\pi}{1-\pi} \ge 0.3)$
+
+Rearranging the equation $\frac{1-2\pi}{1-\pi} \ge 0.3$
+
+$1 - 2\pi \ge 0.3(1-\pi)$
+
+$1 - 2\pi \ge 0.3 - 0.3\pi$
+
+$1 \ge 0.3 + 1.7\pi$
+
+$1 - 0.3 \ge 1.7\pi$
+
+$0.7 \ge 1.7\pi$
+
+$\frac{0.7}{1.7} \ge \pi$
+
+$\pi \le 0.4117$
+
+Next, choosing our apriori beliefs. We chose to use strict parameters like:
+
+$P(\psi \ge 0.3) = 0.05$ and $P(\psi \ge 0) = 0.5$.
+
+$P(\psi \ge 0.3) = 0.05$ is that we believe there is only a 5% chance that the vaccine meets the FDA requirement of at least 30% efficacy.
+
+$P(\psi \ge 0) = 0.5$ is that we believe there is a 50% chance that the vaccine is effective.
+
+In terms of $\pi$, the beliefs are
+
+$P(\psi \ge 0.3) = 0.05$ is $P(\pi \le 0.4117) = 0.05$
+
+$P(\psi \ge 0) 0.5$ is $P(\pi \le 0.5) = 0.5$
+
+
+Next, to find a $Beta(a,b)$ prior for $\pi$, we used the library `LearnBayes` and the function `beta.select()`.
+```{r}
+
+library(LearnBayes)
+
+beta.select(quantile1 = list(p = 0.05, x = 07/17),
+            quantile2 = list(p = 0.5, x = 0.5))
+
+```
+Using the function, our prior belief is $Beta(43.03,43.03)$. To find the posterior distribution of $\pi$, we used this equation: $h(\pi|t) = Beta(43.03 + t, 170 - t + 43.03$ where $t = 8$.
+
+The data model is $f(T|\pi) \sim Binom(170, \pi)$.
+
+The prior is $g(\pi) = Beta(43.03, 43.03)$
+
+The posterior is $h(\pi|t) = Beta(51.03, 205.03)$
+
+This is the visualization of the posterior distributon of $\pi$
+```{r}
+
+library(ggplot2)
+
+ggplot()+
+  stat_function(
+    fun = dbeta, args = list(shape1 = 43.03, shape2 = 43.03),
+    aes(color = "prior")) +
+  stat_function(
+    fun = dbeta,
+    args = list(shape1 = 51.03, shape2 = 205.03),
+    aes(color = "posterior")) +
+  scale_color_manual(name = "distribution",
+  values = c("prior" = "orange", "posterior" = "navyblue")) +
+  
+  labs(title = "Beta Prior and Posterior for Vaccine Data",
+       x = expression(pi),
+       y = "PDF")
+
+```
+
+Bayesian Analysis: Inference
+
+#Posterior Distribution of pi
+
+```{r}
+
+posterior_median_pi <- qbeta(0.5, shape1 = 43.03 + 8, shape2 = 170 - 8 + 43.03)
+
+cat("The Posterior Median of pi is", round(posterior_median_pi, 4))
+
+```
+
+
+```{r}
+#95% Confidence Interval
+
+cl <- qbeta(p = c(0.025, 0.975), shape1 = 43.03 + 8, shape2 = 170 - 8 + 43.03)
+
+lower <- cl[1]
+
+upper <- cl[2]
+
+cat("The 95% Confidence Interval is from", lower, "to", upper)
+
+
+```
+
+
+```{r}
+
+library(HDInterval)
+
+hdi(qbeta, credMass = 0.95, shape1 = 43.03 + 8, shape2 = 170 - 8 + 43.03)
+
+
+```
+
+The hdi() function finds the shortest interval containing 95% of the posterior probability. The 95% highest posterior density interval for $\pi$ is (0.1513, 0.2486).
+
+Translating the median back to $\psi$
+
+The Posterior Median of $\pi$ is 0.1985 or $P(\pi < 0.1985|t) = 0.5$.
+
+The parameter of interest, $\psi = \frac{1-2\pi}{1-\pi}$, can be rearranged in terms of $\pi$ to $\pi = \frac{1-\psi}{2-\psi}$.
+
+If $\pi = \frac{1-\psi}{2-\psi}$, then $P(\pi < 0.1985|t) = 0.5$ becomes
+
+$P(\frac{1-\psi}{2-\psi} < 0.1985|t) = 0.5$
+
+$P(1-\psi < 0.1985(2-\psi)|t) = 0.5$
+
+$P(1-\psi < 0.397 - 0.1985\psi|t) = 0.5$
+
+$P(-0.8015\psi < -0.603|t) = 0.5$
+
+$P(\psi > 0.7523 |t) = 0.5$
+
+The posterior median of $\psi$ is 0.7523.
+
+
+Translating the 95% interval for $\pi$
+
+The 95% confidence interval is from $0.1528 < \pi < 0.2503$.
+
+To transform the interval for $\psi$, I'm using the parameter of interest, $\frac{1-2\pi}{1-\pi}$ and plugging in the $\pi$ values.
+
+For the $\pi$ value: 0.1528
+
+$\psi_{lower} = \frac{1-2(0.1528)}{1-0.1528} = \frac{0.6944}{0.8472} = 0.8196$
+
+
+For the $\pi$ value: 0.2503
+
+$\psi_{upper} = \frac{1-2(0.2503)}{1-0.2503} = \frac{0.4994}{0.7497} = 0.6661$
+
+The 95% confidence interval for $\pi$ is (0.1528, 0.2503) while the interval for $\psi$ is approximately (0.6661, 0.8196).
+
+The posterior distribution suggests the vaccine efficacy is likely betwen 66.61% to 81.96%.
+
+
+Bayesian P-value
+
+The null and alternative hypothesis are 
+
+$H_0: \psi = 0.3$ vs $H_1: \psi > 0.3$
+
+To find the the posterior probability $P(\psi \le 0.3|t)$, I'll use the parameter of interest.
+
+
+The parameter of interest, $\psi = \frac{1-2\pi}{1-\pi}$, can be rearranged in terms of $\pi$ to $\pi = \frac{1-\psi}{2-\psi}$.
+
+I'll plug in $\psi = 0.3$ into $\pi = \frac{1-\psi}{2-\psi}$ to get:
+
+$\pi = \frac{1-0.3}{2-0.3} = \frac{0.7}{1.7} = 0.4118$
+
+$\pi = 0.4118$
+
+To compute the Bayesian p-value, we use the `pbeta` function and $\pi \ge 0.4118$.
+
+$P(\pi \ge 0.4118|t)$
+
+```{r}
+
+pi <- 0.7/1.7
+
+a <- 51.03
+  
+b <- 205.03
+
+p_val <- 1 - pbeta(pi, a, b)
+
+p_val
+
+
+```
+The p-value is `r p_val` which is extremely small indicating we reject the null hypothesis and side with the alternative that the vaccine efficacy exceeds the FDA threshold of 30%.
+
+
+
+# Results
+Present your findings. 
+
+Bayesian Method
+
+Through Bayesian Inference, we denote $T$ as the number of COVID-19 cases in the vaccine group modeled as $T | \pi \sim Binomial(n = 170, \pi)$. The parameter of interest is vaccine efficacy which is modeled with $\psi = \frac{1-2\pi}{1-\pi}$
+
+The prior beliefs we have is that the there is a 5% prior probability that the vaccine meets the FDA efficacy requirement of at least 30% $(P(\psi \ge 0.3) = 0.05)$.
+
+With our calculations, we know that 0.4117 is the cutoff infection probability that corresponds to the FDA's 30% vaccine efficacy.
+
+Based on the data and prior assumptions, the Posterior Median of $\pi$ is 0.1985. This means that the median estimate of the true infection probability among vaccinated individuals is 19.85%.
+
+The 95% confidence interval for $\pi$ is [0.1528, 0.2503] or that the true probability of infection among vaccinated individuals is likely between 15.28% to 25.03%.
+
+The 95% highest posterior density interval for $\pi$ is (0.1513, 0.2486). There is a 95% posterior probability that the true infection probability among vaccinated individuals is likely between 15.13% to 24.86%.
+
+
+The posterior median of $psi$ is 0.7523. This means that the vaccine is estimated to reduce the probability of infection by approximately 75.23%.
+
+The 95% confidence interval for $psi$ is [0.6661, 0.8196]. There is a 95% posterior probability that the true vaccine efficacy lies between 66.61% to 81.96%.
+
+
+With the null and alternative hypothesis being $H_0: \psi = 0.3$ vs $H_1: \psi > 0.3$ for vaccine efficacy, the p-value (1.9317881× 10−13) is smaller than the significance levels of 0.05 and 0.01 indicating that the vaccine efficacy exceeds the FDA threshold of 30%.
+
+
+
+
+
+
+
+
+
+
